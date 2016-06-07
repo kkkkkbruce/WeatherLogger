@@ -1,13 +1,15 @@
 #WeatherLogger
-----
+
+----------
 This sketch shows Date & Time & current sensor readings to LCD
 And logs sensor readings to CVC file on SD card every 2 secconds
----
-Hardware: 
-*LCD screen 20x4 using Adafruit i2c/SPI LCD backpack using MCP23008 I2C expander (http://www.ladyada.net/products/i2cspilcdbackpack/index.html)
-*DHT 22 Temperature and Humidity sensor
-*MPL115A2 Pressure sensor
-*Adafruit Data Logger Shield
+----------
+
+Hardware:
+* LCD screen 20x4 using Adafruit i2c/SPI LCD backpack
+* DHT 22 Temperature and Humidity sensor
+* Adafruit MPL115A2 Pressure sensor breakout
+* Adafruit Data Logger Shield
 
 
 The circuit:
