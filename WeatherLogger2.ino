@@ -33,22 +33,23 @@
 */
 
 // Libraries to include:
+#include <SD.h>
 #include <Wire.h>
 #include <LiquidTWI.h>
 #include <RTClib.h>
 #include <DHT.h>
 #include <Adafruit_MPL115A2.h>
-#include <SD.h>
+
 
 // how many milliseconds between grabbing data and logging it. 1000 ms is once a second
-#define LOG_INTERVAL  1000 // mills between entries (reduce to take more/faster data)
+#define LOG_INTERVAL  2000 // mills between entries (reduce to take more/faster data)
 // how many milliseconds before writing the logged data permanently to disk
 // set it to the LOG_INTERVAL to write each time (safest)
 // set it to 10*LOG_INTERVAL to write all data every 10 datareads, you could lose up to 
 // the last 10 reads if power is lost but it uses less power and is much faster!
-#define SYNC_INTERVAL 1000 // mills between calls to flush() - to write data to the card
+#define SYNC_INTERVAL 20000 // mills between calls to flush() - to write data to the card
 uint32_t syncTime = 0; // time of last sync()
-#define ECHO_TO_SERIAL   1 // echo data to serial port
+#define ECHO_TO_SERIAL   0 // echo data to serial port
 #define WAIT_TO_START    0 // Wait for serial input in setup()
 
 //#Initialize Hardware
@@ -78,16 +79,13 @@ char daysOfTheWeek[7][4] = {"Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"};
 char monthsOfTheYear[12][4] ={"Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"};
 
 
-//define variables for humidity, temperature C and temperature F
+//define variables for humidity and temperature F
 float h = 0.0;
-float t = 0.0;
 float f = 0.0;
 
-int const AvgSize = 10;
+#define AvgSize  10
 float pressureKPA = 0;
 float bpHistory[AvgSize];
-float sum;
-float bpAvg;
 
 void error(char *str)
 {
@@ -154,9 +152,14 @@ void setup() {
   lcd.begin(20, 4);
   // Print a message to the LCD.
   lcd.print("   Weather Logger");
+  
   //Start up the Clock
   if (! rtc.begin()) {
-    lcd.print("Couldn't find RTC");
+    lcd.print("RTC failed");
+    logfile.println("RTC failed");
+#if ECHO_TO_SERIAL
+    Serial.println("RTC failed");
+#endif  //ECHO_TO_SERIAL
     while (1);
   }
   //Uncomment the following line to set the date and time of the clock
@@ -170,6 +173,12 @@ void setup() {
     // January 21, 2014 at 3am you would call:
     // rtc.adjust(DateTime(2014, 1, 21, 3, 0, 0));
   }
+  
+  logfile.println("millis,stamp,datetime,humidity,temp,pressure");    
+#if ECHO_TO_SERIAL
+  Serial.println("millis,stamp,datetime,humidity,temp,pressure");
+#endif //ECHO_TO_SERIAL
+  
   //populate Barometric Pressure History
   int i;
   for(i=0;i<AvgSize;i=i+1){
@@ -182,22 +191,70 @@ void setup() {
 }
 
 void loop() {
-  delay(2000);
+  DateTime now;
+
+  // delay for the amount of time we want between readings
+  delay((LOG_INTERVAL -1) - (millis() % LOG_INTERVAL));
+  
+  digitalWrite(greenLEDpin, HIGH);
+  
+  // log milliseconds since starting
+  uint32_t m = millis();
+  logfile.print(m);           // milliseconds since start
+  logfile.print(", ");    
+#if ECHO_TO_SERIAL
+  Serial.print(m);         // milliseconds since start
+  Serial.print(", ");  
+#endif
+
+  // fetch the time
+  now = rtc.now();
+  // log time
+  logfile.print(now.unixtime()); // seconds since 1/1/1970
+  logfile.print(", ");
+  logfile.print('"');
+  logfile.print(now.year(), DEC);
+  logfile.print("/");
+  logfile.print(now.month(), DEC);
+  logfile.print("/");
+  logfile.print(now.day(), DEC);
+  logfile.print(" ");
+  logfile.print(now.hour(), DEC);
+  logfile.print(":");
+  logfile.print(now.minute(), DEC);
+  logfile.print(":");
+  logfile.print(now.second(), DEC);
+  logfile.print('"');
+#if ECHO_TO_SERIAL
+  Serial.print(now.unixtime()); // seconds since 1/1/1970
+  Serial.print(", ");
+  Serial.print('"');
+  Serial.print(now.year(), DEC);
+  Serial.print("/");
+  Serial.print(now.month(), DEC);
+  Serial.print("/");
+  Serial.print(now.day(), DEC);
+  Serial.print(" ");
+  Serial.print(now.hour(), DEC);
+  Serial.print(":");
+  Serial.print(now.minute(), DEC);
+  Serial.print(":");
+  Serial.print(now.second(), DEC);
+  Serial.print('"');
+#endif //ECHO_TO_SERIAL
   // Reading temperature or humidity takes about 250 milliseconds!
   // Sensor readings may also be up to 2 seconds 'old' (its a very slow sensor)
   h = dht.readHumidity();
-  // Read temperature as Celsius (the default)
-  t = dht.readTemperature();
   // Read temperature as Fahrenheit (isFahrenheit = true)
   f = dht.readTemperature(true);
 
   // Check if any reads failed and exit early (to try again).
-  if (isnan(h) || isnan(t) || isnan(f)) {
+  if (isnan(h) || isnan(f)) {
     Serial.println("Failed to read from DHT sensor!");
     return;
   }
   //Shift and append Barometric Pressure History
-  int i;
+  int i, sum;
   sum = 0;
   for(i=0;i<AvgSize-1;i=i+1){
     bpHistory[i] = bpHistory[i+1];
@@ -211,8 +268,39 @@ void loop() {
   sum = sum + bpHistory[AvgSize-1];
   pressureKPA = sum/AvgSize;  
   
-  UpdateLCD();
+    logfile.print(", ");    
+  logfile.print(h);
+  logfile.print(", ");    
+  logfile.print(f);
+  logfile.print(", ");    
+  logfile.print(pressureKPA);
+#if ECHO_TO_SERIAL
+  Serial.print(", ");   
+  Serial.print(h);
+  Serial.print(", ");    
+  Serial.print(f);
+  Serial.print(", ");    
+  Serial.print(pressureKPA);
+#endif //ECHO_TO_SERIAL
   
+  logfile.println();
+#if ECHO_TO_SERIAL
+  Serial.println();
+#endif // ECHO_TO_SERIAL
+
+  digitalWrite(greenLEDpin, LOW);
+  
+  UpdateLCD();
+
+  // Now we write data to disk! Don't sync too often - requires 2048 bytes of I/O to SD card
+  // which uses a bunch of power and takes time
+  if ((millis() - syncTime) < SYNC_INTERVAL) return;
+  syncTime = millis();
+  
+  // blink LED to show we are syncing data to the card & updating FAT!
+  digitalWrite(redLEDpin, HIGH);
+  logfile.flush();
+  digitalWrite(redLEDpin, LOW);
 }
 
 void UpdateLCD(){
@@ -238,26 +326,5 @@ void UpdateLCD(){
   lcd.print("Press: "); 
   lcd.print(pressureKPA); 
   lcd.print(" kPa");
-
-  //Output log to serial port
-  Serial.print(now.unixtime());
-  Serial.print(", ");
-  Serial.print(now.year(), DEC);
-  Serial.print("/");
-  Serial.print(now.month(), DEC);
-  Serial.print("/");
-  Serial.print(now.day(), DEC);
-  Serial.print(" ");
-  Serial.print(now.hour(), DEC);
-  Serial.print(":");
-  Serial.print(now.minute(), DEC);
-  Serial.print(":");
-  Serial.print(now.second(), DEC);
-  Serial.print(", ");
-  Serial.print(f);
-  Serial.print(", ");
-  Serial.print(h);
-  Serial.print(", ");
-  Serial.println(pressureKPA);
 }
 
