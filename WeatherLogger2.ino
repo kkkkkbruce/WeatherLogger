@@ -73,7 +73,7 @@ File logfile;
 //Define week days for display
 char daysOfTheWeek[7][4] = {"Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"};
 //define mont names for display
-char monthsOfTheYear[12][4] ={"Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"};
+char monthsOfTheYear[13][4] ={"   ","Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"};
 
 
 //define variables for humidity and temperature F
@@ -104,8 +104,14 @@ void setup() {
   while (!Serial.available());
 #endif //WAIT_TO_START
 
+  // set up the LCD's number of rows and columns: 
+  lcd.begin(20, 4);
+  // Print a message to the LCD.
+  lcd.print("   Weather Logger");
+
   // initialize the SD card
   Serial.print("Initializing SD card...");
+  lcd.print("Initializing SD card...");
   // make sure that the default chip select pin is set to
   // output, even if you don't use it:
   pinMode(10, OUTPUT);
@@ -115,6 +121,7 @@ void setup() {
     error("Card failed, or not present");
   }
   Serial.println("card initialized.");
+  lcd.println("card initialized.");
   
   // create a new file
   char filename[] = "LOGGER00.CSV";
@@ -134,6 +141,8 @@ void setup() {
   
   Serial.print("Logging to: ");
   Serial.println(filename);
+  lcd.print("Logging to: ");
+  lcd.println(filename);
   
   //start up the DHT 22
   dht.begin();
@@ -141,10 +150,6 @@ void setup() {
   // start up the MP115A2
   mpl115a2.begin();
   
-  // set up the LCD's number of rows and columns: 
-  lcd.begin(20, 4);
-  // Print a message to the LCD.
-  lcd.print("   Weather Logger");
   
   //Start up the Clock
   if (! rtc.begin()) {
@@ -173,6 +178,8 @@ void setup() {
     bpHistory[i] = mpl115a2.getPressure();
   }
 */
+ lcd.clear();
+ lcd.print("   Weather Logger");
 }
 
 void loop() {
