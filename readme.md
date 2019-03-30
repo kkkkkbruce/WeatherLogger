@@ -1,4 +1,4 @@
-#WeatherLogger
+## WeatherLogger
 
 This sketch shows Date & Time & current sensor readings to LCD and logs sensor readings to CVC file on SD card every 2 secconds
 
